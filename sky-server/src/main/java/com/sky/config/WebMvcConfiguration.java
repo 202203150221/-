@@ -1,0 +1,101 @@
+package com.sky.config;
+
+import com.fasterxml.jackson.databind.ObjectMapper;
+import com.sky.interceptor.JwtTokenAdminInterceptor;
+import com.sky.json.JacksonObjectMapper;
+import lombok.extern.slf4j.Slf4j;
+import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.context.annotation.Bean;
+import org.springframework.context.annotation.Configuration;
+import org.springframework.http.converter.HttpMessageConverter;
+import org.springframework.http.converter.json.MappingJackson2HttpMessageConverter;
+import org.springframework.web.servlet.config.annotation.InterceptorRegistry;
+import org.springframework.web.servlet.config.annotation.ResourceHandlerRegistry;
+import org.springframework.web.servlet.config.annotation.WebMvcConfigurationSupport;
+import springfox.documentation.builders.ApiInfoBuilder;
+import springfox.documentation.builders.PathSelectors;
+import springfox.documentation.builders.RequestHandlerSelectors;
+import springfox.documentation.service.ApiInfo;
+import springfox.documentation.spi.DocumentationType;
+import springfox.documentation.spring.web.plugins.Docket;
+
+import java.util.List;
+
+/**
+ * 配置类，注册web层相关组件
+ */
+@Configuration
+@Slf4j
+public class WebMvcConfiguration extends WebMvcConfigurationSupport {
+
+    @Autowired
+    private JwtTokenAdminInterceptor jwtTokenAdminInterceptor;
+
+    /**
+     * 注册自定义拦截器
+     *
+     * @param registry
+     */
+    protected void addInterceptors(InterceptorRegistry registry) {
+        log.info("开始注册自定义拦截器...");
+        registry.addInterceptor(jwtTokenAdminInterceptor)
+                .addPathPatterns("/admin/**")
+                .excludePathPatterns("/admin/employee/login");
+    }
+
+    /**
+     * 通过knife4j生成接口文档
+     * @return
+     */
+    @Bean
+    public Docket docket() {
+        ApiInfo apiInfo = new ApiInfoBuilder()
+                .title("苍穹外卖项目接口文档")
+                .version("2.0")
+                .description("苍穹外卖项目接口文档")
+                .build();
+        Docket docket = new Docket(DocumentationType.SWAGGER_2)
+                .apiInfo(apiInfo)
+                .select()
+                .apis(RequestHandlerSelectors.basePackage("com.sky.controller"))
+                .paths(PathSelectors.any())
+                .build();
+        return docket;
+    }
+
+    /**
+     * 设置静态资源映射
+     * @param registry
+     */
+    protected void addResourceHandlers(ResourceHandlerRegistry registry) {
+        registry.addResourceHandler("/doc.html").addResourceLocations("classpath:/META-INF/resources/");
+        registry.addResourceHandler("/webjars/**").addResourceLocations("classpath:/META-INF/resources/webjars/");
+    }
+
+    /**
+     * 拓展springmvc框架的信息转化器
+     *
+     * @return
+     */
+
+    /**
+ * 拓展HTTP消息转换器
+ * 该方法用于向Spring的HTTP消息转换器列表中添加自定义的消息转换器，以实现特定的序列化和反序列化需求
+ *
+ * @param converters Spring的HTTP消息转换器列表，用于处理HTTP请求和响应的转换工作
+ */
+public void extendMessageConverters(List<HttpMessageConverter<?>> converters) {
+    // 记录拓展消息转换器的日志
+    log.info("拓展消息转换器...");
+
+    // 创建一个MappingJackson2HttpMessageConverter实例，用于处理基于JSON格式的消息转换
+    MappingJackson2HttpMessageConverter converter = new MappingJackson2HttpMessageConverter();
+
+    // 为converter设置自定义的ObjectMapper，以实现特定的JSON序列化和反序列化逻辑
+    converter.setObjectMapper(new JacksonObjectMapper());
+
+    // 注意：此处未将converter添加到converters列表中，可能需要根据实际情况进行修改
+    converters.add(0,converter);
+}
+
+}
